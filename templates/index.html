@@ -7,20 +7,20 @@
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
         
-        /* BLOQUEIO DE TELA VERTICAL */
+        /* TRAVA HORIZONTAL */
         #lock { position: fixed; inset: 0; background: #000; color: #fff; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
         @media screen and (orientation: portrait) { #lock { display: flex; } }
 
-        /* MENU HORIZONTAL ESTILO CONSOLE */
+        /* MENU HORIZONTAL */
         #menu { 
             position: fixed; inset: 0; z-index: 5000;
             background: linear-gradient(90deg, #000 35%, transparent), url('https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1000');
             background-size: cover; display: flex; flex-direction: column; justify-content: center; padding-left: 8%; color: white;
         }
-        .btn-entrar { background: #0ff; color: #000; border: none; padding: 15px 70px; font-weight: bold; cursor: pointer; border-radius: 3px; font-size: 1rem; transition: 0.3s; width: fit-content; text-transform: uppercase; }
+        .btn-entrar { background: #0ff; color: #000; border: none; padding: 15px 70px; font-weight: bold; cursor: pointer; border-radius: 3px; transition: 0.3s; width: fit-content; text-transform: uppercase; }
         .btn-entrar:hover { background: #fff; transform: scale(1.05); }
 
-        /* LOADING PROGRESSIVO */
+        /* CARREGAMENTO */
         #loading { position: fixed; inset: 0; background: #000; color: #0ff; z-index: 8000; display: none; flex-direction: column; align-items: center; justify-content: center; }
         .bar-container { width: 300px; height: 4px; background: #222; margin-top: 20px; border-radius: 2px; overflow: hidden; }
         #bar-fill { width: 0%; height: 100%; background: #0ff; transition: 0.2s; }
@@ -28,17 +28,17 @@
 </head>
 <body>
 
-    <div id="lock"><h1>GIRE O TELEMÓVEL, SENHOR 🏝️</h1><p>O Robô Árabe 3 exige modo horizontal.</p></div>
+    <div id="lock"><h1>GIRE O TELEMÓVEL, SENHOR 🏝️</h1><p>Modo horizontal obrigatório para o Robô Árabe 3.</p></div>
 
     <div id="menu">
         <h1 style="font-size: 4rem; margin: 0; letter-spacing: -2px;">PARKOUR GAME</h1>
         <p style="color: #0ff; letter-spacing: 5px; margin-bottom: 30px;">MULTIJOGADOR | @MARITZT</p>
         <input type="text" id="nick" placeholder="NOME DO AGENTE" style="padding: 15px; width: 300px; background: rgba(255,255,255,0.1); border: 1px solid #444; color: #fff; margin-bottom: 20px; outline: none;">
-        <button class="btn-entrar" onclick="start()">CONECTAR AO SERVIDOR</button>
+        <button class="btn-entrar" onclick="start()">ENTRAR NO SERVIDOR</button>
     </div>
 
     <div id="loading">
-        <h2 id="load-txt">A SINCRONIZAR AGENTE...</h2>
+        <h2 id="load-txt">A CONECTAR...</h2>
         <div class="bar-container"><div id="bar-fill"></div></div>
     </div>
 
@@ -50,6 +50,14 @@
         const socket = io();
         let scene, camera, renderer, myRobot, myName;
         const loader = new THREE.GLTFLoader();
+
+        // LINKS DIRETOS DO SENHOR @MARITZT
+        const MODELS = {
+            agente: 'https://drive.google.com/uc?export=download&id=1dBjEdhwNeBH5H14dEKHjQu-fgQnFbRvd',
+            estrada: 'https://drive.google.com/uc?export=download&id=1i2Zw6B8F1ooFpwXJUvqGdx4xM2k6gZXH',
+            arvore: 'https://drive.google.com/uc?export=download&id=1nIsjyCbmMEB5AKcvOfqv7RJtuUxF3xjf',
+            parque: 'https://drive.google.com/uc?export=download&id=1B4phUOIHhvdNxzhf-_bK1l2H2pQ7I4DU'
+        };
 
         function start() {
             myName = document.getElementById('nick').value;
@@ -69,10 +77,14 @@
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-            
-            // CARREGAMENTO DO AGENTE COM PERCENTAGEM
-            loader.load('../agente.glb', (gltf) => {
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(50, 100, 50);
+            scene.add(sun);
+
+            // 1. CARREGAR AGENTE
+            loader.load(MODELS.agente, (gltf) => {
                 myRobot = gltf.scene;
+                myRobot.position.y = 1;
                 scene.add(myRobot);
                 document.getElementById('loading').style.display = 'none';
                 socket.emit('join', { user: myName });
@@ -80,13 +92,26 @@
                 if(xhr.lengthComputable) {
                     let p = Math.round(xhr.loaded / xhr.total * 100);
                     document.getElementById('bar-fill').style.width = p + "%";
-                    document.getElementById('load-txt').innerText = "A BAIXAR AGENTE: " + p + "%";
+                    document.getElementById('load-txt').innerText = "BAIXANDO AGENTE: " + p + "%";
                 }
             });
 
-            // CARREGAR CENÁRIO (VAI APARECER ASSIM QUE BAIXAR)
-            loader.load('../parque.glb', g => scene.add(g.scene));
-            loader.load('../estrada.glb', g => scene.add(g.scene));
+            // 2. CARREGAR CENÁRIO
+            loader.load(MODELS.parque, g => scene.add(g.scene));
+            loader.load(MODELS.estrada, g => {
+                for(let i=0; i<15; i++) {
+                    let c = g.scene.clone();
+                    c.position.z = -i * 30;
+                    scene.add(c);
+                }
+            });
+            loader.load(MODELS.arvore, g => {
+                for(let i=0; i<30; i++) {
+                    let c = g.scene.clone();
+                    c.position.set(Math.random()*200-100, 0, Math.random()*200-100);
+                    scene.add(c);
+                }
+            });
 
             animate();
         }
@@ -94,7 +119,7 @@
         function animate() {
             requestAnimationFrame(animate);
             if(myRobot) {
-                camera.position.set(myRobot.position.x, myRobot.position.y + 5, myRobot.position.z + 10);
+                camera.position.set(myRobot.position.x, myRobot.position.y + 6, myRobot.position.z + 12);
                 camera.lookAt(myRobot.position);
             }
             renderer.render(scene, camera);
